@@ -8,6 +8,11 @@ import android.view.MenuItem;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.SeekBar;
+
+import com.romotive.library.RomoCommandInterface;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -22,6 +27,13 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
     private boolean surfaceReady = false;
     private boolean cameraInPreview = false;
 
+    private SeekBar leftControl;
+    private SeekBar rightControl;
+
+    private CheckBox checkBox;
+    private boolean syncLeftRight = false;
+
+    private RomoCommandInterface romoCmdIf = new RomoCommandInterface();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,8 +44,57 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Ca
         this.surfaceHolder = surfaceView.getHolder();
         this.surfaceHolder.addCallback(this);
 
+        this.leftControl = (SeekBar) findViewById(R.id.control_bar_left);
+        this.rightControl = (SeekBar) findViewById(R.id.control_bar_right);
 
+
+        this.leftControl.setOnSeekBarChangeListener(controlBarListener);
+        this.rightControl.setOnSeekBarChangeListener(controlBarListener);
+
+
+        this.checkBox = (CheckBox) findViewById(R.id.sync_check_box);
+
+        this.checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                syncLeftRight = b;
+            }
+        });
     }
+
+    private SeekBar.OnSeekBarChangeListener controlBarListener = new SeekBar.OnSeekBarChangeListener() {
+        @Override
+        public void onProgressChanged(SeekBar seekBar, int value, boolean fromUser) {
+            if (!fromUser)
+                return;
+
+            int leftValue = leftControl.getProgress();
+            int rightValue = rightControl.getProgress();
+
+            SeekBar otherBar = leftControl == seekBar?rightControl:leftControl;
+
+            if (syncLeftRight) {
+                otherBar.setProgress(value);
+                leftValue = rightValue = value;
+            }
+
+            int romoLeftCmd = (int) (255*(leftValue-50)/100.0f);
+            int romoRightCmd = (int) (255*(rightValue-50)/100.0f);
+
+            romoCmdIf.playMotorCommand(romoLeftCmd, romoLeftCmd);
+        }
+
+        @Override
+        public void onStartTrackingTouch(SeekBar seekBar) {
+
+        }
+
+        @Override
+        public void onStopTrackingTouch(SeekBar seekBar) {
+
+        }
+    };
+
 
     private void setupCamera() {
         if (cameraDevice!=null)
